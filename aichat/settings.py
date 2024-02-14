@@ -71,8 +71,8 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    'https://tavitrades.vercel.app',
-    'https://tavi-ai-84c82e04d5da.herokuapp.com/'
+    "https://tavitrades.vercel.app",
+    "https://tavi-ai-84c82e04d5da.herokuapp.com",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
