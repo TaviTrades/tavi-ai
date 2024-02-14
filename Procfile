@@ -1,0 +1,1 @@
+web: gunicorn aichat.wsgi
