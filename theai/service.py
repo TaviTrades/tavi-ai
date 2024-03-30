@@ -118,6 +118,23 @@ prompt = ChatPromptTemplate(
     ]
 )
 
+prompt2 = ChatPromptTemplate(
+    messages=[
+        SystemMessagePromptTemplate.from_template(
+            "You are a knowledgeable chatbot that can detect when a user has enter a command statement to do something with a financial asset "
+            "like open the eurusd chart or show me the eurusd chart or just eurusd. "
+            "You just respond with the abbreviation of the asset in the user input in this format cmd:abbreviation. "
+            "If the user enters an input that's not a command to open or view a financial asset return 'false'."
+        ),
+        MessagesPlaceholder(variable_name="chat_history"),
+        HumanMessagePromptTemplate.from_template("{question}"),
+        SystemMessagePromptTemplate.from_template(
+            "Based on the command detection, provide the response as 'cmd:abbreviation' or 'false'."
+        )
+    ]
+)
+
+
 # Define the memory to keep track of the conversation
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
@@ -125,6 +142,13 @@ memory = ConversationBufferMemory(memory_key="chat_history", return_messages=Tru
 llm_chain = LLMChain(
     llm=llm,
     prompt=prompt,
+    verbose=True,
+    memory=memory,
+)
+
+llm_chain2 = LLMChain(
+    llm=llm,
+    prompt=prompt2,
     verbose=True,
     memory=memory,
 )
@@ -144,8 +168,15 @@ def get_ai_response(input_question):
     Function to get the AI response for a given input question.
     """
     llmresponse = llm_chain.run({"question": input_question})
-    if int(llmresponse) >= 5:
+    process_cmd = llm_chain2.run({"question": input_question})
+    print(process_cmd)
+
+    if "false" not in process_cmd.lower() and int(llmresponse) >= 5:
+        response = agent_chain.run(input_question) + "\n" + process_cmd
+    elif "false" in process_cmd.lower() and int(llmresponse) >= 5:
         response = agent_chain.run(input_question)
+    elif "false" not in process_cmd.lower():
+        response = process_cmd
     else:
         response = "Question not relevant enough for a detailed response."
     return response
