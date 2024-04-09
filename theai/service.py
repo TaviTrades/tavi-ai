@@ -68,115 +68,218 @@
 #     return response
 
 
-import os
-from langchain.chains import LLMChain
-from langchain.prompts import (
-    ChatPromptTemplate, 
-    HumanMessagePromptTemplate, 
-    MessagesPlaceholder, 
-    SystemMessagePromptTemplate
-)
-from langchain.memory import ConversationBufferMemory
-from langchain.agents import AgentType, initialize_agent, Tool
-from langchain_community.utilities import SerpAPIWrapper
-from langchain_openai import OpenAI
+# import os
+# from langchain.chains import LLMChain
+# from langchain.prompts import (
+#     ChatPromptTemplate, 
+#     HumanMessagePromptTemplate, 
+#     MessagesPlaceholder, 
+#     SystemMessagePromptTemplate
+# )
+# from langchain.memory import ConversationBufferMemory
+# from langchain.agents import AgentType, initialize_agent, Tool
+# from langchain_community.utilities import SerpAPIWrapper
+# from langchain_openai import OpenAI
+# from .qFlow import get_qFlow_response
+# from .cmdflow import get_cmdflow_response
 
-# Initialize the LLM with OpenAI
-llm = OpenAI(temperature=0)
 
-# Define a tool for performing online searches
-search = SerpAPIWrapper()
 
-def formatted_search(query):
-    results = search.run(query)
-    return f"Search Results: {results}"
 
-# Define the tools for the agent
-tools = [
-    Tool(
-        name="Search",
-        func=formatted_search,
-        description="Performs online searches and returns formatted results."
-    ),
+# # Initialize the LLM with OpenAI
+# llm = OpenAI(temperature=0)
+
+# # Define a tool for performing online searches
+# search = SerpAPIWrapper()
+
+# def formatted_search(query):
+#     results = search.run(query)
+#     return f"Search Results: {results}"
+
+# # Define the tools for the agent
+# tools = [
+#     Tool(
+#         name="Search",
+#         func=formatted_search,
+#         description="Performs online searches and returns formatted results."
+#     ),
+# ]
+
+# # Updated prompt with clearer instructions and scoring system
+# prompt = ChatPromptTemplate(
+#     messages=[
+#         SystemMessagePromptTemplate.from_template(
+#             "You are a knowledgeable chatbot skilled in evaluating relevance to topics "
+#             "like finance, business, biography, history, politics, and notable people. "
+#             "Rank pleasantries and general greetings with a score of 10. "
+#             "For each question, provide a relevance score between 1 and 10, where 10 is the most relevant. "
+#             "Your response should contain only the rank score in number form."
+#         ),
+#         MessagesPlaceholder(variable_name="chat_history"),
+#         HumanMessagePromptTemplate.from_template("{question}"),
+#         SystemMessagePromptTemplate.from_template(
+#             "Based on the relevance, provide the rank score as a single number."
+#         )
+#     ]
+# )
+
+# prompt2 = ChatPromptTemplate(
+#     messages=[
+#         SystemMessagePromptTemplate.from_template(
+#             "You are a knowledgeable chatbot that can detect when a user has enter a command statement to do something with a financial asset "
+#             "like open the eurusd chart or show me the eurusd chart or just eurusd. "
+#             "You just respond with the abbreviation of the asset in the user input in this format cmd:abbreviation. "
+#             "If the user enters an input that's not a command to open or view a financial asset return 'false'."
+#         ),
+#         MessagesPlaceholder(variable_name="chat_history"),
+#         HumanMessagePromptTemplate.from_template("{question}"),
+#         SystemMessagePromptTemplate.from_template(
+#             "Based on the command detection, provide the response as 'cmd:abbreviation' or 'false'."
+#         )
+#     ]
+# )
+
+
+# # Define the memory to keep track of the conversation
+# memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+# # Initialize LLMChain with the new prompt and memory
+# llm_chain = LLMChain(
+#     llm=llm,
+#     prompt=prompt,
+#     verbose=True,
+#     memory=memory,
+# )
+
+# llm_chain2 = LLMChain(
+#     llm=llm,
+#     prompt=prompt2,
+#     verbose=True,
+#     memory=memory,
+# )
+
+# # Initialize the agent chain with the tools, LLM, and prompt
+# agent_chain = initialize_agent(
+#     tools,
+#     llm,
+#     agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+#     verbose=True,
+#     handle_parsing_errors=True,
+#     memory=memory,
+# )
+
+# check = 'cmd'
+
+# def get_ai_response(input_question):
+    
+#     """
+#     Function to get the AI response for a given input question.
+#     """
+    # if check == 'q':
+    #     response = get_qFlow_response(input_question)
+    # elif check == 'cmd':
+    #     response = get_cmdflow_response(input_question)
+    # else:
+    #     response = "Invalid check value. Please set check to either 'q' or 'cmd'."
+
+#     # llmresponse = llm_chain.run({"question": input_question})
+#     # process_cmd = llm_chain2.run({"question": input_question})
+#     # print(process_cmd)
+
+#     # if "false" not in process_cmd.lower() and int(llmresponse) >= 5:
+#     #     response = agent_chain.run(input_question) + "\n" + process_cmd
+#     # elif "false" in process_cmd.lower() and int(llmresponse) >= 5:
+#     #     response = agent_chain.run(input_question)
+#     # elif "false" not in process_cmd.lower():
+#     #     response = process_cmd
+#     # else:
+#     #     response = "Question not relevant enough for a detailed response."
+#     return response
+
+
+
+
+
+
+
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.vectorstores import Chroma
+from langchain.prompts import SemanticSimilarityExampleSelector
+from langchain.prompts import FewShotChatMessagePromptTemplate, ChatPromptTemplate
+from .qFlow import get_qFlow_response
+from .cmdflow import get_cmdflow_response
+
+
+# Define the examples for training the model
+
+model = ChatOpenAI(model="gpt-4")
+
+
+examples = [
+    {"input": "What is the price of BTC?", "output": "Q"},
+    {"input": "Who is the CEO of apple?", "output": "Q"},
+    {"input": "What is the current price of apple stock?", "output": "Q"},
+    {"input": "Open the EURUSD chart", "output":"cmd"},
+    {"input": "view chart as line chart", "output":"cmd"},
+    {"input": "Add a bollinger band to the chart", "output":"cmd"},
+    {"input": "Add a stocastic indicator to the chart", "output":"cmd"},
 ]
 
-# Updated prompt with clearer instructions and scoring system
-prompt = ChatPromptTemplate(
-    messages=[
-        SystemMessagePromptTemplate.from_template(
-            "You are a knowledgeable chatbot skilled in evaluating relevance to topics "
-            "like finance, business, biography, history, politics, and notable people. "
-            "Rank pleasantries and general greetings with a score of 10. "
-            "For each question, provide a relevance score between 1 and 10, where 10 is the most relevant. "
-            "Your response should contain only the rank score in number form."
-        ),
-        MessagesPlaceholder(variable_name="chat_history"),
-        HumanMessagePromptTemplate.from_template("{question}"),
-        SystemMessagePromptTemplate.from_template(
-            "Based on the relevance, provide the rank score as a single number."
-        )
+# Check that all input and output values are strings
+for example in examples:
+    assert isinstance(example["input"], str), f"Invalid input: {example['input']}"
+    assert isinstance(example["output"], str), f"Invalid output: {example['output']}"
+
+# Vectorize the examples
+to_vectorize = [" ".join(example.values()) for example in examples]
+embeddings = OpenAIEmbeddings()
+vectorstore = Chroma.from_texts(to_vectorize, embeddings, metadatas=examples)
+
+# Define the example selector
+example_selector = SemanticSimilarityExampleSelector(
+    vectorstore=vectorstore,
+    k=2,
+)
+
+# Define the few-shot prompt
+few_shot_prompt = FewShotChatMessagePromptTemplate(
+    input_variables=["input"],
+    example_selector=example_selector,
+    example_prompt=ChatPromptTemplate.from_messages(
+        [("human", "{input}"), ("ai", "{output}")]
+    ),
+)
+
+# Define the final prompt
+final_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", "You're a AI that returns Q or cmd, Q if the {input} is more of a question than a task to be done on the trading terminal and cmd if it's more of a command or a task to be done on the trading terminal"),
+        few_shot_prompt,
+        ("human", "{input}"),
     ]
 )
 
-prompt2 = ChatPromptTemplate(
-    messages=[
-        SystemMessagePromptTemplate.from_template(
-            "You are a knowledgeable chatbot that can detect when a user has enter a command statement to do something with a financial asset "
-            "like open the eurusd chart or show me the eurusd chart or just eurusd. "
-            "You just respond with the abbreviation of the asset in the user input in this format cmd:abbreviation. "
-            "If the user enters an input that's not a command to open or view a financial asset return 'false'."
-        ),
-        MessagesPlaceholder(variable_name="chat_history"),
-        HumanMessagePromptTemplate.from_template("{question}"),
-        SystemMessagePromptTemplate.from_template(
-            "Based on the command detection, provide the response as 'cmd:abbreviation' or 'false'."
-        )
-    ]
-)
-
-
-# Define the memory to keep track of the conversation
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-# Initialize LLMChain with the new prompt and memory
-llm_chain = LLMChain(
-    llm=llm,
-    prompt=prompt,
-    verbose=True,
-    memory=memory,
-)
-
-llm_chain2 = LLMChain(
-    llm=llm,
-    prompt=prompt2,
-    verbose=True,
-    memory=memory,
-)
-
-# Initialize the agent chain with the tools, LLM, and prompt
-agent_chain = initialize_agent(
-    tools,
-    llm,
-    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
-    verbose=True,
-    handle_parsing_errors=True,
-    memory=memory,
-)
+# Define the chain
+chain = final_prompt | model
 
 def get_ai_response(input_question):
     """
     Function to get the AI response for a given input question.
     """
-    llmresponse = llm_chain.run({"question": input_question})
-    process_cmd = llm_chain2.run({"question": input_question})
-    print(process_cmd)
+    
+    response = chain.invoke({"input": input_question})
+    response_content = response.content 
 
-    if "false" not in process_cmd.lower() and int(llmresponse) >= 5:
-        response = agent_chain.run(input_question) + "\n" + process_cmd
-    elif "false" in process_cmd.lower() and int(llmresponse) >= 5:
-        response = agent_chain.run(input_question)
-    elif "false" not in process_cmd.lower():
-        response = process_cmd
+    if response_content == 'Q':
+        response = get_qFlow_response(input_question)
+    elif response_content == 'cmd':
+        response = get_cmdflow_response(input_question)
     else:
-        response = "Question not relevant enough for a detailed response."
+        response = "Invalid check value. Please set check to either 'q' or 'cmd'."
+    
     return response
+
+
+
+
+
