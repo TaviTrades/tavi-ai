@@ -3,7 +3,8 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.vectorstores import Chroma
 from langchain.prompts import SemanticSimilarityExampleSelector
 from langchain.prompts import FewShotChatMessagePromptTemplate, ChatPromptTemplate
-from .memory import get_memory_response
+from .qFlow import get_qFlow_response
+from .cmdflow import get_cmdflow_response
 
 
 # Define the examples for training the model
@@ -12,15 +13,13 @@ model = ChatOpenAI(model="gpt-4")
 
 
 examples = [
-    {"input": "What is the price of BTC?", "output": "F"},
-    {"input": "Who is the CEO of apple?", "output": "F"},
-    {"input": "What is the current price of apple stock?", "output": "F"},
-    {"input": "Open the EURUSD chart", "output":"F"},
-    {"input": "view chart as line chart", "output":"F"},
-    {"input": "Add a bollinger band to the chart", "output":"F"},
-    {"input": "How can i bake cake", "output":"NF"},
-    {"input": "What cloth was kim kadasian wearing at the fashion show?", "output":"NF"},
-    {"input": "What is meteorology?", "output":"NF"},
+    {"input": "What is the price of BTC?", "output": "Q"},
+    {"input": "Who is the CEO of apple?", "output": "Q"},
+    {"input": "What is the current price of apple stock?", "output": "Q"},
+    {"input": "Open the EURUSD chart", "output":"cmd"},
+    {"input": "view chart as line chart", "output":"cmd"},
+    {"input": "Add a bollinger band to the chart", "output":"cmd"},
+    {"input": "Add a stocastic indicator to the chart", "output":"cmd"},
 ]
 
 # Check that all input and output values are strings
@@ -51,7 +50,7 @@ few_shot_prompt = FewShotChatMessagePromptTemplate(
 # Define the final prompt
 final_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You're a AI that returns F or NF, F if the {input} is related to finance, history, business, companies, coporate world, trading, stocks, forex, crypto e.t.c  and NF if it's not related to any of that."),
+        ("system", "You're a AI that returns Q or cmd, Q if the {input} is more of a question than a task to be done on the trading terminal and cmd if it's more of a command or a task to be done on the trading terminal"),
         few_shot_prompt,
         ("human", "{input}"),
     ]
@@ -60,7 +59,7 @@ final_prompt = ChatPromptTemplate.from_messages(
 # Define the chain
 chain = final_prompt | model
 
-def get_ai_response(input_question):
+def get_qcCheck_response(input_question):
     """
     Function to get the AI response for a given input question.
     """
@@ -68,12 +67,12 @@ def get_ai_response(input_question):
     response = chain.invoke({"input": input_question})
     response_content = response.content 
 
-    if response_content == 'F':
-        response = get_memory_response(input_question, 'F')
-    elif response_content == 'NF':
-        response = get_memory_response(input_question, 'NF')
+    if response_content == 'Q':
+        response = get_qFlow_response(input_question)
+    elif response_content == 'cmd':
+        response = get_cmdflow_response(input_question)
     else:
-        response = "Invalid check value. Please set check to either 'related to finance' or 'note'."
+        response = "Invalid check value. Please set check to either 'q' or 'cmd'."
     
     return response
 
